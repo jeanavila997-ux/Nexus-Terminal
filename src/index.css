@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: "Newsreader", Georgia, Cambria, serif;
+  --font-body: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", monospace;
+
+  --color-background: #050505;
+  --color-surface: #080808;
+  --color-surface-lowest: #050505;
+  --color-surface-low: #0c0c0c;
+  --color-surface-container: #111111;
+  --color-surface-high: #181818;
+  --color-surface-highest: #222222;
+  --color-accent: #F27D26;
+  --color-accent-hover: #ff9d5c;
+  --color-primary: #F27D26;
+  --color-primary-container: #26160c;
+  --color-on-surface: #e5e5e5;
+  --color-on-surface-variant: #a3a3a3;
+  --color-outline-variant: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  font-family: var(--font-body), sans-serif;
+  background-color: #050505;
+  color: #e5e5e5;
+  overflow-x: hidden;
+}
+
+.font-serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+code, pre, .font-mono, .font-label-mono {
+  font-family: var(--font-mono), monospace;
+}
+
+/* Sophisticated Dark glass panel styling */
+.glass-panel {
+  background-color: rgba(8, 8, 8, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Sophisticated Dark scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 125, 38, 0.5);
+}
+

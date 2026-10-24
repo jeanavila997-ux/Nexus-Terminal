@@ -1,0 +1,6 @@
+{
+  "name": "Nexus Terminal",
+  "description": "Terminal Console e hub de agentes de IA com execução de comandos, canais, explorador de arquivos, logs em tempo real e preview HTML com suporte a imagens.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
