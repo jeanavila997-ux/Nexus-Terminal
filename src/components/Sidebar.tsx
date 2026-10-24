@@ -189,6 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Configurações */}
         <div
+          data-testid="nav-settings"
           onClick={() => onSelectView('settings')}
           className={`px-4 py-3 rounded-lg border transition-all cursor-pointer ${
             currentView === 'settings'

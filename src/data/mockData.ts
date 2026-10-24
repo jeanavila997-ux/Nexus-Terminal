@@ -2,37 +2,54 @@ import { Agent, Channel, CommandItem, LLMModel, MCPServer, ProjectFile, SkillToo
 
 export const INITIAL_LLMS: LLMModel[] = [
   {
-    id: 'gpt-4o',
-    name: 'OpenAI GPT-4o',
-    provider: 'openai',
-    description: 'Raciocínio multimodal de alta velocidade e precisão para código.',
-    badge: 'Recomendado',
-    contextWindow: '128k',
+    id: 'cx/gpt-5.6-sol',
+    name: 'GPT-5.6 Sol (9Router)',
+    provider: '9router',
+    description: 'Via gateway local 127.0.0.1:20128 — bom equilíbrio código + raciocínio.',
+    badge: 'Padrão local',
+    contextWindow: '128k+',
     speed: 'Rápido',
   },
   {
-    id: 'claude-3-5-sonnet',
-    name: 'Claude 3.5 Sonnet',
-    provider: 'anthropic',
-    description: 'Especialista em arquitetura, refatoração de código complexo e escrita técnica.',
+    id: 'cc/claude-sonnet-5-5',
+    name: 'Claude Sonnet 5.5 (9Router)',
+    provider: '9router',
+    description: 'Arquitetura, refatoração e escrita técnica via 9Router (sem Cloud).',
     contextWindow: '200k',
     speed: 'Equilibrado',
   },
   {
-    id: 'gemini-1-5-pro',
-    name: 'Gemini 1.5 Pro',
-    provider: 'google',
-    description: 'Janela de contexto massiva de 2M tokens com análise profunda de repositórios.',
-    contextWindow: '2M',
-    speed: 'Ultra Rápido',
+    id: 'cx/gpt-6-sol',
+    name: 'GPT-6 Sol (9Router)',
+    provider: '9router',
+    description: 'Modelo mais novo do catálogo vivo do 9Router nesta máquina.',
+    contextWindow: '128k+',
+    speed: 'Rápido',
   },
   {
-    id: 'deepseek-r1',
-    name: 'DeepSeek R1',
-    provider: 'deepseek',
-    description: 'Modelo de raciocínio lógico profundo e resolução algorítmica avançada.',
-    contextWindow: '64k',
-    speed: 'Raciocínio',
+    id: 'ollama/qwen2.5-coder:3b-instruct',
+    name: 'Qwen2.5 Coder 3B (Ollama)',
+    provider: 'ollama',
+    description: 'API Ollama local POST /api/chat — bom para código na RTX 3050.',
+    badge: 'Ollama',
+    contextWindow: '32k',
+    speed: 'Local/GPU',
+  },
+  {
+    id: 'ollama/jev:latest',
+    name: 'Jev (Ollama)',
+    provider: 'ollama',
+    description: 'Modelo local jev:latest via ollama serve (127.0.0.1:11434).',
+    contextWindow: '32k',
+    speed: 'Local/GPU',
+  },
+  {
+    id: 'ollama/qwen3.5:4b',
+    name: 'Qwen3.5 4B (Ollama)',
+    provider: 'ollama',
+    description: 'Modelo local qwen3.5:4b — confirme com ollama list se a tag existe.',
+    contextWindow: '32k',
+    speed: 'Local/GPU',
   },
 ];
 
@@ -64,7 +81,7 @@ export const INITIAL_AGENTS: Agent[] = [
     description: 'Executa queries em bancos de dados SQL/NoSQL e analisa datasets estruturados.',
     icon: 'Database',
     status: 'idle',
-    capabilities: ['PostgreSQL', 'Firestore', 'Data Pipelines', 'ETL'],
+    capabilities: ['PostgreSQL', 'SQLite', 'Data Pipelines', 'ETL'],
     skills: ['SQL Query', 'JSON Parse'],
   },
   {
@@ -136,9 +153,9 @@ export const INITIAL_COMMANDS: CommandItem[] = [
   {
     id: 'deploy-app',
     title: 'Deploy App',
-    command: 'npm run build && gcloud run deploy --source .',
+    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173',
     category: 'DevOps',
-    description: 'Compila a aplicação e envia build de produção para o Cloud Run',
+    description: 'Compila a aplicação e sobe preview local em 127.0.0.1:4173',
   },
   {
     id: 'code-audit',
@@ -322,7 +339,7 @@ Ambiente completo de console de terminal e orquestração de agentes.
 - Execução de comandos interativos no PowerShell / Bash
 - Múltiplos agentes (DevAgent, ResearchAgent, DataAgent, SecurityAgent)
 - Servidores MCP integrados (Local FS, Web Search, Node Runner)
-- Seleção dinâmica de LLMs (GPT-4o, Claude 3.5, Gemini 1.5 Pro, DeepSeek R1)
+- Seleção dinâmica de LLMs via 9Router local (GPT/Claude/Ollama — sem Google Cloud)
 - Canais de comunicação dedicados (# Geral, # Frontend, # Backend, # Deploy)
 `,
   },
@@ -378,7 +395,7 @@ echo "📡 Despachando webhook para fila de deploy contínuo..."
 curl -s -X POST https://api.nexus.internal/v1/ci/pipeline-trigger \\
   -H "Content-Type: application/json" \\
   -d "{\\"event\\":\\"push\\",\\"branch\\":\\"$BRANCH\\",\\"commit\\":\\"$COMMIT_HASH\\",\\"agent\\":\\"DevAgent\\"}" \\
-  --connect-timeout 2 || echo "ℹ️ [INFO] Webhook de CI/CD enfileirado para Cloud Run."
+  --connect-timeout 2 || echo "ℹ️ [INFO] Webhook de CI/CD enfileirado para fila local (127.0.0.1)."
 
 # 2. Registro no canal #deploy
 echo "🔔 Notificando canal #deploy e atualizando status operacional..."
@@ -456,7 +473,7 @@ echo "📡 Despachando webhook para fila de deploy contínuo..."
 curl -s -X POST https://api.nexus.internal/v1/ci/pipeline-trigger \\
   -H "Content-Type: application/json" \\
   -d "{\\"event\\":\\"push\\",\\"branch\\":\\"$BRANCH\\",\\"commit\\":\\"$COMMIT_HASH\\",\\"agent\\":\\"DevAgent\\"}" \\
-  --connect-timeout 2 || echo "ℹ️ [INFO] Webhook de CI/CD enfileirado para Cloud Run."
+  --connect-timeout 2 || echo "ℹ️ [INFO] Webhook de CI/CD enfileirado para fila local (127.0.0.1)."
 
 # 2. Registro no canal #deploy
 echo "🔔 Notificando canal #deploy e atualizando status operacional..."
@@ -635,7 +652,7 @@ access-control-allow-origin: *
     id: 'deploy',
     name: 'Deploy',
     unreadCount: 0,
-    description: 'Pipelines CI/CD, contêineres Docker, logs de produção e métricas Cloud Run.',
+    description: 'Pipelines CI/CD, contêineres Docker, logs de produção e métricas locais.',
     messages: [
       {
         id: 'd-msg-1',

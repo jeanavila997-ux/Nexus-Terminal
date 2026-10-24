@@ -37,6 +37,7 @@ import {
   SystemLogEntry
 } from './types';
 import { HelpCircle, X } from 'lucide-react';
+import { chatWithLlm } from './lib/llm';
 
 export default function App() {
   // Navigation View
@@ -59,7 +60,12 @@ export default function App() {
 
   // LLM & Agent State
   const [llms] = useState<LLMModel[]>(INITIAL_LLMS);
-  const [selectedLLMId, setSelectedLLMId] = useState<string>('gpt-4o');
+  const [selectedLLMId, setSelectedLLMId] = useState<string>('ollama/qwen2.5-coder:3b-instruct');
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxTokens, setMaxTokens] = useState(2048);
+  const [systemPrompt, setSystemPrompt] = useState(
+    'Você é o Nexus Agent, assistente técnico local. Responda em pt-BR de forma clara e prática. Provedores: Ollama (127.0.0.1:11434) e 9Router (127.0.0.1:20128). Sem Google Cloud.'
+  );
 
   const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
   const [activeAgentId, setActiveAgentId] = useState<string>('dev-agent');
@@ -75,7 +81,7 @@ export default function App() {
 
   // Integrated System Logs
   const [systemLogs, setSystemLogs] = useState<SystemLogEntry[]>([
-    { id: '1', time: '10:42:01', level: 'INFO', source: 'NexusKernel', message: 'Iniciando contêiner Cloud Run na porta 3000...' },
+    { id: '1', time: '10:42:01', level: 'INFO', source: 'NexusKernel', message: 'Iniciando Nexus Terminal local na porta 3000 (Vite + Ollama + 9Router)...' },
     { id: '2', time: '10:42:04', level: 'SUCCESS', source: 'MCPBridge', message: 'Servidores MCP conectados: Local FS, Web Search, Node Runner, PostgreSQL' },
     { id: '3', time: '10:43:10', level: 'AGENT', source: 'DevAgent', message: 'Recebida instrução: "Setup a basic Express server in the current directory"' },
     { id: '4', time: '10:43:12', level: 'INFO', source: 'NodeRunner', message: 'Executando comando: npm init -y && npm install express' },
@@ -101,10 +107,12 @@ export default function App() {
   const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
   const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0];
 
-  // Handle Send Message
+  // Handle Send Message — imagem local OU chat real (Ollama / 9Router)
   const handleSendMessage = (text: string, imageLink?: string) => {
     const userMsgId = `user-${Date.now()}`;
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const channelId = activeChannelId;
+    const selectedModel = llms.find((m) => m.id === selectedLLMId) || llms[0];
 
     const userMessage: Message = {
       id: userMsgId,
@@ -123,114 +131,148 @@ export default function App() {
         : undefined,
     };
 
-    // Update channel messages with user message
-    const updatedMessages = [...activeChannel.messages, userMessage];
+    const lowerText = text.toLowerCase();
+    const isImageShortcut =
+      Boolean(imageLink) ||
+      lowerText.includes('imagem') ||
+      lowerText.includes('image') ||
+      lowerText.includes('<img');
 
-    // Determine agent response based on user input
-    setTimeout(() => {
-      const agentMsgId = `agent-${Date.now()}`;
-      let agentResponse: Message;
-
-      const lowerText = text.toLowerCase();
-
-      if (lowerText.includes('imagem') || lowerText.includes('image') || lowerText.includes('img') || imageLink) {
-        const urlToUse = imageLink || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1000&auto=format&fit=crop&q=80';
-        setPreviewImageUrl(urlToUse);
-
-        agentResponse = {
-          id: agentMsgId,
-          role: 'agent',
-          sender: 'Nexus Agent',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          actionBadge: 'ACTION',
-          content: `Link direto de imagem adicionado com sucesso! Renderizado no preview HTML com tag <img src="${urlToUse}" />:`,
-          codeSnippet: {
-            filename: 'public/index.html',
-            language: 'html',
-            code: `<!-- Link direto para imagem adicionado dinamicamente -->
-<div class="card">
-  <img 
-    src="${urlToUse}" 
-    alt="Imagem direta carregada" 
-    class="w-full rounded-lg border border-[#444653]" 
-  />
-</div>`,
-          },
-          images: [
-            {
-              url: urlToUse,
-              alt: 'Imagem renderizada via link direto HTML',
-              sourceType: 'html',
-            },
-          ],
-          terminalOutput: {
-            cwd: 'PS C:\\Projects\\Nexus>',
-            command: `echo '<img src="${urlToUse}" />' >> public/index.html`,
-            output: `[HTML Renderer] Tag <img> inserida no index.html.
-[HTTP 200] Link direto de imagem verificado com sucesso.
-Workspace Preview atualizado.`,
-          },
-        };
-      } else if (lowerText.includes('server') || lowerText.includes('express') || lowerText.includes('node')) {
-        agentResponse = {
-          id: agentMsgId,
-          role: 'agent',
-          sender: 'Nexus Agent',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          actionBadge: 'ACTION',
-          content: 'Servidor Express configurado com suporte para servir arquivos estáticos e imagens HTML diretamente.',
-          codeSnippet: {
-            filename: 'server.js',
-            language: 'javascript',
-            code: `const express = require('express');
-const app = express();
-const port = 3000;
-
-app.use(express.static('public'));
-app.get('/api/health', (req, res) => res.json({ status: 'healthy', port }));
-app.listen(port, () => console.log(\`Running on port \${port}\`));`,
-          },
-          terminalOutput: {
-            cwd: 'PS C:\\Projects\\Nexus>',
-            command: 'node server.js',
-            output: `Server listening at http://localhost:3000
-MCP Local FS: Sincronizado
-Rotas de imagens e assets estáticos liberadas.`,
-          },
-        };
-      } else {
-        agentResponse = {
-          id: agentMsgId,
-          role: 'agent',
-          sender: 'Nexus Agent',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          actionBadge: 'ACTION',
-          content: `Comando processado com sucesso pelo ${activeAgent.name}. Todos os 4 servidores MCP e rotas do contêiner estão operacionais.`,
-          terminalOutput: {
-            cwd: 'PS C:\\Projects\\Nexus>',
-            command: `nexus-cli execute "${text.substring(0, 30)}..."`,
-            output: `[DevAgent] Tarefa executada com sucesso.
-Código de retorno: 0 (OK)`,
-          },
-        };
-      }
-
+    // Atalho local de imagem (sem LLM)
+    if (isImageShortcut) {
+      const urlToUse =
+        imageLink ||
+        'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1000&auto=format&fit=crop&q=80';
+      setPreviewImageUrl(urlToUse);
+      const agentResponse: Message = {
+        id: `agent-${Date.now()}`,
+        role: 'agent',
+        sender: 'Nexus Agent',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        actionBadge: 'ACTION',
+        content: `Link direto de imagem adicionado! Tag: <img src="${urlToUse}" />`,
+        images: [{ url: urlToUse, alt: 'Imagem renderizada via link direto HTML', sourceType: 'html' }],
+        terminalOutput: {
+          cwd: 'PS C:\\Projects\\Nexus>',
+          command: `echo '<img src="${urlToUse}" />' >> public/index.html`,
+          output: '[HTML Renderer] Tag <img> inserida.\nWorkspace Preview atualizado.',
+        },
+      };
       setChannels((prev) =>
         prev.map((c) =>
-          c.id === activeChannelId
-            ? { ...c, messages: [...updatedMessages, agentResponse] }
-            : c
+          c.id === channelId ? { ...c, messages: [...c.messages, userMessage, agentResponse] } : c
         )
       );
-    }, 600);
+      return;
+    }
+
+    const pendingId = `agent-pending-${Date.now()}`;
+    const pendingMessage: Message = {
+      id: pendingId,
+      role: 'agent',
+      sender: selectedModel.name,
+      time: currentTime,
+      actionBadge: selectedModel.provider.toUpperCase(),
+      content: `Consultando ${selectedModel.provider} (${selectedModel.id})…`,
+    };
 
     setChannels((prev) =>
       prev.map((c) =>
-        c.id === activeChannelId
-          ? { ...c, messages: updatedMessages }
-          : c
+        c.id === channelId ? { ...c, messages: [...c.messages, userMessage, pendingMessage] } : c
       )
     );
+
+    setSystemLogs((prev) => [
+      ...prev,
+      {
+        id: `log-${Date.now()}`,
+        time: new Date().toLocaleTimeString('pt-BR', { hour12: false }),
+        level: 'INFO',
+        source: 'LlmBridge',
+        message: `Chat → ${selectedModel.provider} model=${selectedModel.id}`,
+      },
+    ]);
+
+    const history = activeChannel.messages
+      .filter((m) => m.role === 'user' || m.role === 'agent')
+      .slice(-12)
+      .map((m) => ({
+        role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+    void (async () => {
+      try {
+        const result = await chatWithLlm({
+          model: selectedModel,
+          temperature,
+          maxTokens,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...history,
+            { role: 'user', content: text },
+          ],
+        });
+
+        const agentResponse: Message = {
+          id: `agent-${Date.now()}`,
+          role: 'agent',
+          sender: selectedModel.name,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          actionBadge: result.provider.toUpperCase(),
+          content: result.content,
+          terminalOutput: {
+            cwd: 'PS C:\\Projects\\Nexus>',
+            command:
+              result.provider === 'ollama'
+                ? `POST http://127.0.0.1:11434/api/chat  model=${result.modelId}`
+                : `POST http://127.0.0.1:20128/v1/chat/completions  model=${result.modelId}`,
+            output: `[${result.provider}] resposta OK · ${result.content.length} chars`,
+          },
+        };
+
+        setChannels((prev) =>
+          prev.map((c) =>
+            c.id === channelId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) => (m.id === pendingId ? agentResponse : m)),
+                }
+              : c
+          )
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const errorResponse: Message = {
+          id: `agent-${Date.now()}`,
+          role: 'agent',
+          sender: 'Nexus Agent',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          actionBadge: 'ERROR',
+          content: `Falha ao chamar ${selectedModel.provider}: ${msg}\n\nDicas:\n- Ollama: npm run ollama:serve\n- 9Router: start-9router\n- Use sempre 127.0.0.1 (não localhost)`,
+        };
+        setChannels((prev) =>
+          prev.map((c) =>
+            c.id === channelId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) => (m.id === pendingId ? errorResponse : m)),
+                }
+              : c
+          )
+        );
+        setSystemLogs((prev) => [
+          ...prev,
+          {
+            id: `log-${Date.now()}`,
+            time: new Date().toLocaleTimeString('pt-BR', { hour12: false }),
+            level: 'ERROR',
+            source: 'LlmBridge',
+            message: msg.slice(0, 240),
+          },
+        ]);
+      }
+    })();
   };
 
   // Handle Command Run from Command Library or Terminal
@@ -418,7 +460,7 @@ Código de retorno: 0 (OK)`,
       killActionStatus: 'none',
       coreBreakdown: { core1: c1, core2: c2, core3: c3, core4: c4 },
       topProcesses: [
-        { name: 'Dev Agent (Gemini Worker)', cpu: 65.4, pid: 2180 },
+        { name: 'Dev Agent (9Router Worker)', cpu: 65.4, pid: 2180 },
         { name: 'Nexus Engine Core', cpu: 24.8, pid: 1042 },
         { name: 'Vite Dev Server', cpu: 4.2, pid: 3014 },
       ],
@@ -452,7 +494,7 @@ Código de retorno: 0 (OK)`,
    - vCPU 2: ${c3}%
    - vCPU 3: ${c4}%
 • Processos com Maior Consumo Identificados:
-   [PID 2180] Dev Agent (Gemini Worker): 65.4% CPU
+   [PID 2180] Dev Agent (9Router Worker): 65.4% CPU
    [PID 1042] Nexus Engine Core: 24.8% CPU
    [PID 3014] Vite Dev Server: 4.2% CPU
 • Política de Encerramento: ${
@@ -746,7 +788,7 @@ Código de retorno: 0 (OK)`,
 
             // When the alert has been active continuously for 10 seconds:
             if (nextActive === 10) {
-              const topProcess = { pid: 2180, name: 'Dev Agent (Gemini Worker)', cpu: 65.4 };
+              const topProcess = { pid: 2180, name: 'Dev Agent (9Router Worker)', cpu: 65.4 };
               if (cpuKillPolicy === 'auto_kill') {
                 handleKillProcess(topProcess.pid, topProcess.name, true /* auto */);
               } else if (cpuKillPolicy === 'suggest') {
@@ -878,6 +920,12 @@ Código de retorno: 0 (OK)`,
                 onSelectLLM={setSelectedLLMId}
                 cpuKillPolicy={cpuKillPolicy}
                 onSetCpuKillPolicy={setCpuKillPolicy}
+                temperature={temperature}
+                onTemperatureChange={setTemperature}
+                maxTokens={maxTokens}
+                onMaxTokensChange={setMaxTokens}
+                systemPrompt={systemPrompt}
+                onSystemPromptChange={setSystemPrompt}
               />
             )}
           </div>

@@ -137,7 +137,7 @@ echo "📡 Despachando webhook para fila de deploy contínuo..."
 curl -s -X POST https://api.nexus.internal/v1/ci/pipeline-trigger \\
   -H "Content-Type: application/json" \\
   -d "{\\"event\\":\\"push\\",\\"branch\\":\\"$BRANCH\\",\\"commit\\":\\"$COMMIT_HASH\\",\\"agent\\":\\"DevAgent\\"}" \\
-  --connect-timeout 2 || echo "ℹ️ [INFO] Webhook de CI/CD enfileirado para Cloud Run."
+  --connect-timeout 2 || echo "ℹ️ [INFO] Webhook de CI/CD enfileirado para fila local (127.0.0.1)."
 
 # 2. Registro no canal #deploy
 echo "🔔 Notificando canal #deploy e atualizando status operacional..."

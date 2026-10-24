@@ -28,7 +28,7 @@ interface LogsViewProps {
 }
 
 const DEFAULT_LOGS: LogEntry[] = [
-  { id: '1', time: '10:42:01', level: 'INFO', source: 'NexusKernel', message: 'Iniciando contêiner Cloud Run na porta 3000...' },
+  { id: '1', time: '10:42:01', level: 'INFO', source: 'NexusKernel', message: 'Iniciando Nexus Terminal local na porta 3000 (Vite + 9Router)...' },
   { id: '2', time: '10:42:04', level: 'SUCCESS', source: 'MCPBridge', message: 'Servidores MCP conectados: Local FS, Web Search, Node Runner, PostgreSQL' },
   { id: '3', time: '10:43:10', level: 'AGENT', source: 'DevAgent', message: 'Recebida instrução: "Setup a basic Express server in the current directory"' },
   { id: '4', time: '10:43:12', level: 'INFO', source: 'NodeRunner', message: 'Executando comando: npm init -y && npm install express' },

@@ -34,7 +34,7 @@ export const InteractiveTerminalModal: React.FC<InteractiveTerminalModalProps> =
   const [isExpanded, setIsExpanded] = useState(false);
 
   const [lines, setLines] = useState<TerminalLine[]>([
-    { type: 'system', text: 'Nexus Terminal CLI Engine v2.4.0 [Host: Cloud Run / Node.js 22]' },
+    { type: 'system', text: 'Nexus Terminal CLI Engine v2.4.0 [Host: local 127.0.0.1 / Node.js 24 + 9Router]' },
     { type: 'system', text: 'Digite "help" para ver a lista de comandos suportados.' },
     { type: 'output', text: 'MCP Servers: [Local FS: ONLINE, Web Search: ONLINE, Node Runner: ONLINE]' },
   ]);

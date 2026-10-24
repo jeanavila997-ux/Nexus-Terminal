@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
-import { 
-  Settings, 
-  Key, 
-  Cpu, 
-  Image as ImageIcon, 
-  Server, 
-  Sliders, 
-  Save, 
-  Check, 
+import React, { useEffect, useState } from 'react';
+import {
+  Settings,
+  Key,
+  Cpu,
+  Image as ImageIcon,
+  Server,
+  Save,
+  Check,
   ShieldAlert,
-  Sparkles
+  RefreshCw,
 } from 'lucide-react';
 import { LLMModel, CpuAlertKillPolicy } from '../types';
+import {
+  checkOllamaStatus,
+  checkRouterStatus,
+  type OllamaStatus,
+  type RouterStatus,
+} from '../lib/llm';
 
 interface SettingsViewProps {
   llms: LLMModel[];
@@ -19,6 +24,12 @@ interface SettingsViewProps {
   onSelectLLM: (id: string) => void;
   cpuKillPolicy?: CpuAlertKillPolicy;
   onSetCpuKillPolicy?: (policy: CpuAlertKillPolicy) => void;
+  temperature: number;
+  onTemperatureChange: (value: number) => void;
+  maxTokens: number;
+  onMaxTokensChange: (value: number) => void;
+  systemPrompt: string;
+  onSystemPromptChange: (value: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -27,16 +38,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSelectLLM,
   cpuKillPolicy = 'suggest',
   onSetCpuKillPolicy,
+  temperature,
+  onTemperatureChange,
+  maxTokens,
+  onMaxTokensChange,
+  systemPrompt,
+  onSystemPromptChange,
 }) => {
-  const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState(4096);
   const [enableHtmlImageLinks, setEnableHtmlImageLinks] = useState(true);
   const [enableCorsBypass, setEnableCorsBypass] = useState(true);
   const [autoPreviewSync, setAutoPreviewSync] = useState(true);
-  const [systemPrompt, setSystemPrompt] = useState(
-    'Você é o Nexus Agent, um assistente técnico de desenvolvimento e orquestrador de contêineres com suporte a execução CLI e renderização direta de links de imagens no HTML.'
-  );
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
+  const [routerStatus, setRouterStatus] = useState<RouterStatus | null>(null);
+  const [probing, setProbing] = useState(false);
+
+  const refreshProviders = async () => {
+    setProbing(true);
+    try {
+      const [o, r] = await Promise.all([checkOllamaStatus(), checkRouterStatus()]);
+      setOllamaStatus(o);
+      setRouterStatus(r);
+    } finally {
+      setProbing(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshProviders();
+  }, []);
 
   const handleSave = () => {
     setSavedSuccess(true);
@@ -45,7 +75,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="flex-1 h-full overflow-y-auto p-8 bg-[#131313] space-y-8 max-w-5xl mx-auto">
-      {/* Settings Header */}
       <div className="flex items-center justify-between border-b border-[#444653]/30 pb-4">
         <div>
           <h2 className="font-headline font-bold text-2xl text-[#e5e2e1] tracking-tight flex items-center gap-3">
@@ -53,7 +82,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             Configurações do Nexus Terminal
           </h2>
           <p className="text-xs text-[#8e909f] font-mono mt-1">
-            Personalize modelos de LLM, comportamento de renderização de imagens HTML e permissões de agentes.
+            Provedores locais: 9Router (20128) + Ollama serve (11434). Sem Google Cloud.
           </p>
         </div>
 
@@ -66,7 +95,87 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
 
-      {/* 1. Suporte a Links Diretos de Imagens HTML (Requested Feature!) */}
+      {/* Provedores locais */}
+      <div className="p-6 bg-[#1c1b1b] border border-[#444653]/40 rounded-lg space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-headline font-semibold text-lg text-[#e5e2e1] flex items-center gap-2">
+            <Server className="w-5 h-5 text-[#b8c4ff]" />
+            Status dos Provedores Locais
+          </h3>
+          <button
+            type="button"
+            onClick={() => void refreshProviders()}
+            disabled={probing}
+            className="px-3 py-1.5 rounded-md border border-[#333] text-xs font-mono text-[#e5e2e1] hover:border-white/30 flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${probing ? 'animate-spin' : ''}`} />
+            Verificar
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="p-4 bg-[#0e0e0e] border border-[#2a2a2a] rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-white">Ollama API</span>
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                  ollamaStatus?.ok
+                    ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+                    : 'text-rose-400 border-rose-500/40 bg-rose-500/10'
+                }`}
+              >
+                {ollamaStatus == null ? '...' : ollamaStatus.ok ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
+            <p className="text-xs font-mono text-[#b8c4ff]">http://127.0.0.1:11434</p>
+            <p className="text-[11px] text-[#8e909f] font-mono">
+              {ollamaStatus?.ok
+                ? `${ollamaStatus.models.length} modelos · v${ollamaStatus.version ?? '?'}`
+                : ollamaStatus?.error || 'Rode: npm run ollama:serve'}
+            </p>
+            {ollamaStatus?.ok && (
+              <p className="text-[10px] text-[#8e909f] font-mono break-all">
+                {ollamaStatus.models.slice(0, 6).join(' · ')}
+                {ollamaStatus.models.length > 6 ? ' · …' : ''}
+              </p>
+            )}
+          </div>
+
+          <div className="p-4 bg-[#0e0e0e] border border-[#2a2a2a] rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-white">9Router</span>
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                  routerStatus?.ok
+                    ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+                    : 'text-rose-400 border-rose-500/40 bg-rose-500/10'
+                }`}
+              >
+                {routerStatus == null ? '...' : routerStatus.ok ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
+            <p className="text-xs font-mono text-[#b8c4ff]">http://127.0.0.1:20128/v1</p>
+            <p className="text-[11px] text-[#8e909f] font-mono">
+              {routerStatus?.ok
+                ? `${routerStatus.models.length} ids no catálogo`
+                : routerStatus?.error || 'Suba com start-9router'}
+            </p>
+          </div>
+        </div>
+
+        <div className="p-3 bg-[#0e0e0e] border border-[#2a2a2a] rounded text-xs font-mono text-[#8e909f] space-y-1">
+          <p>
+            <span className="text-[#b8c4ff]">npm run ollama:serve</span> — garante{' '}
+            <code>ollama serve</code> + API em 127.0.0.1:11434
+          </p>
+          <p>
+            Endpoints usados: <code className="text-[#b8c4ff]">POST /api/chat</code>,{' '}
+            <code className="text-[#b8c4ff]">GET /api/tags</code> (docs oficiais Ollama)
+          </p>
+        </div>
+      </div>
+
+      {/* Imagens HTML */}
       <div className="p-6 bg-[#1c1b1b] border border-[#444653]/40 rounded-lg space-y-4">
         <h3 className="font-headline font-semibold text-lg text-[#e5e2e1] flex items-center gap-2">
           <ImageIcon className="w-5 h-5 text-[#b8c4ff]" />
@@ -130,12 +239,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Parâmetros de Inferência da LLM */}
+      {/* Parâmetros LLM */}
       <div className="p-6 bg-[#1c1b1b] border border-[#444653]/40 rounded-lg space-y-5">
         <h3 className="font-headline font-semibold text-lg text-[#e5e2e1] flex items-center gap-2">
           <Cpu className="w-5 h-5 text-[#b8c4ff]" />
           Parâmetros do Modelo de Linguagem
         </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {llms.map((model) => (
+            <button
+              key={model.id}
+              type="button"
+              onClick={() => onSelectLLM(model.id)}
+              className={`p-3 rounded-lg border text-left transition-all ${
+                selectedLLMId === model.id
+                  ? 'border-[#b8c4ff] bg-[#b8c4ff]/10'
+                  : 'border-[#2a2a2a] bg-[#0e0e0e] hover:border-white/20'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-white">{model.name}</span>
+                {selectedLLMId === model.id && <Check className="w-4 h-4 text-[#b8c4ff]" />}
+              </div>
+              <p className="text-[10px] font-mono text-[#8e909f] mt-1">
+                {model.provider} · {model.id}
+              </p>
+            </button>
+          ))}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -149,7 +281,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               max="1"
               step="0.05"
               value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
+              onChange={(e) => onTemperatureChange(parseFloat(e.target.value))}
               className="w-full h-1.5 bg-[#0e0e0e] rounded-lg appearance-none cursor-pointer accent-[#b8c4ff]"
             />
             <div className="flex justify-between text-[10px] text-[#8e909f] font-mono mt-1">
@@ -165,21 +297,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <input
               type="range"
-              min="1024"
+              min="256"
               max="8192"
-              step="512"
+              step="256"
               value={maxTokens}
-              onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
+              onChange={(e) => onMaxTokensChange(parseInt(e.target.value, 10))}
               className="w-full h-1.5 bg-[#0e0e0e] rounded-lg appearance-none cursor-pointer accent-[#b8c4ff]"
             />
             <div className="flex justify-between text-[10px] text-[#8e909f] font-mono mt-1">
-              <span>1k</span>
+              <span>256</span>
               <span>8k</span>
             </div>
           </div>
         </div>
 
-        {/* System Prompt Customization */}
         <div>
           <label className="font-mono text-xs font-semibold text-[#c4c5d5] block mb-2">
             System Prompt do Nexus Agent
@@ -187,13 +318,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <textarea
             rows={3}
             value={systemPrompt}
-            onChange={(e) => setSystemPrompt(e.target.value)}
+            onChange={(e) => onSystemPromptChange(e.target.value)}
             className="w-full bg-[#0e0e0e] border border-[#444653] rounded-lg p-3 text-xs font-mono text-[#e5e2e1] focus:border-[#b8c4ff] outline-none leading-relaxed"
           />
         </div>
       </div>
 
-      {/* 3. Watchdog de CPU & Política de Encerramento (Kill) */}
+      {/* Watchdog CPU */}
       <div className="p-6 bg-[#1c1b1b] border border-[#444653]/40 rounded-lg space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-headline font-semibold text-lg text-[#e5e2e1] flex items-center gap-2">
@@ -265,18 +396,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* 4. API Keys & Segredos */}
+      {/* Env / chaves */}
       <div className="p-6 bg-[#1c1b1b] border border-[#444653]/40 rounded-lg space-y-4">
         <h3 className="font-headline font-semibold text-lg text-[#e5e2e1] flex items-center gap-2">
           <Key className="w-5 h-5 text-[#b8c4ff]" />
-          Gerenciamento de Chaves de API
+          Variáveis de Ambiente (.env)
         </h3>
         <p className="text-xs text-[#8e909f]">
-          As chaves do Gemini e outros provedores são gerenciadas com segurança pelo ambiente Cloud Run do AI Studio.
+          Proxies do Vite: <code className="text-[#b8c4ff]">/api/ollama</code> → 11434 e{' '}
+          <code className="text-[#b8c4ff]">/api/router</code> → 20128 (Bearer do 9Router só no servidor).
         </p>
-        <div className="p-3 bg-[#0e0e0e] border border-[#2a2a2a] rounded text-xs font-mono text-[#b8c4ff] flex items-center justify-between">
-          <span>GEMINI_API_KEY: Injetado dinamicamente via variáveis de ambiente</span>
-          <span className="text-emerald-400 font-bold">CONFIGURADO</span>
+        <div className="space-y-2">
+          <div className="p-3 bg-[#0e0e0e] border border-[#2a2a2a] rounded text-xs font-mono text-[#b8c4ff] flex items-center justify-between gap-3">
+            <span>OLLAMA_BASE_URL=http://127.0.0.1:11434</span>
+            <span className="text-emerald-400 font-bold shrink-0">LOCAL</span>
+          </div>
+          <div className="p-3 bg-[#0e0e0e] border border-[#2a2a2a] rounded text-xs font-mono text-[#b8c4ff] flex items-center justify-between gap-3">
+            <span>OLLAMA_MODEL=qwen2.5-coder:3b-instruct</span>
+            <span className="text-emerald-400 font-bold shrink-0">PADRÃO</span>
+          </div>
+          <div className="p-3 bg-[#0e0e0e] border border-[#2a2a2a] rounded text-xs font-mono text-[#b8c4ff] flex items-center justify-between gap-3">
+            <span>ROUTER_BASE_URL=http://127.0.0.1:20128/v1</span>
+            <span className="text-emerald-400 font-bold shrink-0">LOCAL</span>
+          </div>
+          <div className="p-3 bg-[#0e0e0e] border border-[#2a2a2a] rounded text-xs font-mono text-[#b8c4ff] flex items-center justify-between gap-3">
+            <span>ROUTER_API_KEY: lida do .env (nunca commitada)</span>
+            <span className="text-emerald-400 font-bold shrink-0">CONFIGURADO</span>
+          </div>
         </div>
       </div>
     </div>

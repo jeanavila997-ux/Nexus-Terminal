@@ -58,7 +58,7 @@ interface ResourceMonitorViewProps {
 
 const INITIAL_PROCESSES: ProcessMetric[] = [
   { pid: 1042, name: 'Nexus Engine Core', category: 'system', cpu: 3.8, memoryMB: 112, threads: 8, status: 'running' },
-  { pid: 2180, name: 'Dev Agent (Gemini Worker)', category: 'agent', cpu: 5.4, memoryMB: 148, threads: 12, status: 'running' },
+  { pid: 2180, name: 'Dev Agent (9Router Worker)', category: 'agent', cpu: 5.4, memoryMB: 148, threads: 12, status: 'running' },
   { pid: 3014, name: 'Vite Dev Server', category: 'dev', cpu: 2.1, memoryMB: 94, threads: 6, status: 'running' },
   { pid: 4120, name: 'PostgreSQL MCP Bridge', category: 'mcp', cpu: 1.2, memoryMB: 48, threads: 4, status: 'idle' },
   { pid: 4890, name: 'FS & CLI Watcher', category: 'system', cpu: 0.9, memoryMB: 32, threads: 3, status: 'running' },
@@ -718,7 +718,7 @@ export const ResourceMonitorView: React.FC<ResourceMonitorViewProps> = ({
               {onExecuteKillProcess && (
                 <button
                   type="button"
-                  onClick={() => onExecuteKillProcess(2180, 'Dev Agent (Gemini Worker)')}
+                  onClick={() => onExecuteKillProcess(2180, 'Dev Agent (9Router Worker)')}
                   disabled={!isAlertActive && !isOverloadStressTesting}
                   className={`w-full py-2.5 px-3 rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
                     isAlertActive || isOverloadStressTesting
