@@ -14,6 +14,8 @@ import { LLMModel, CpuAlertKillPolicy } from '../types';
 import {
   checkOllamaStatus,
   checkRouterStatus,
+  checkOpenCodeStatus,
+  type OpenCodeStatus,
   type OllamaStatus,
   type RouterStatus,
 } from '../lib/llm';
@@ -51,12 +53,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [routerStatus, setRouterStatus] = useState<RouterStatus | null>(null);
+  const [openCodeStatus, setOpenCodeStatus] = useState<OpenCodeStatus | null>(null);
   const [probing, setProbing] = useState(false);
 
   const refreshProviders = async () => {
     setProbing(true);
     try {
-      const [o, r] = await Promise.all([checkOllamaStatus(), checkRouterStatus()]);
+      const [o, r, oc] = await Promise.all([checkOllamaStatus(), checkRouterStatus(), checkOpenCodeStatus()]);
+      setOpenCodeStatus(oc);
       setOllamaStatus(o);
       setRouterStatus(r);
     } finally {
@@ -159,6 +163,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {routerStatus?.ok
                 ? `${routerStatus.models.length} ids no catálogo`
                 : routerStatus?.error || 'Suba com start-9router'}
+            </p>
+          </div>
+
+          <div className="p-4 bg-[#0e0e0e] border border-[#2a2a2a] rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-white">OpenCode Go</span>
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                  openCodeStatus?.ok
+                    ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+                    : 'text-rose-400 border-rose-500/40 bg-rose-500/10'
+                }`}
+              >
+                {openCodeStatus == null ? '...' : openCodeStatus.ok ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
+            <p className="text-xs font-mono text-[#b8c4ff]">https://opencode.ai/zen/go/v1</p>
+            <p className="text-[11px] text-[#8e909f] font-mono">
+              {openCodeStatus?.ok
+                ? `${openCodeStatus.models.length} modelos`
+                : openCodeStatus?.error || 'Defina OPENCODE_API_KEY no .env'}
             </p>
           </div>
         </div>

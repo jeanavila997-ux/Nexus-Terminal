@@ -226,7 +226,9 @@ export default function App() {
             command:
               result.provider === 'ollama'
                 ? `POST http://127.0.0.1:11434/api/chat  model=${result.modelId}`
-                : `POST http://127.0.0.1:20128/v1/chat/completions  model=${result.modelId}`,
+                : result.provider === 'opencode'
+                  ? `POST /api/opencode/v1/chat/completions  model=${result.modelId}`
+                  : `POST http://127.0.0.1:20128/v1/chat/completions  model=${result.modelId}`,
             output: `[${result.provider}] resposta OK · ${result.content.length} chars`,
           },
         };
@@ -249,7 +251,7 @@ export default function App() {
           sender: 'Nexus Agent',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           actionBadge: 'ERROR',
-          content: `Falha ao chamar ${selectedModel.provider}: ${msg}\n\nDicas:\n- Ollama: npm run ollama:serve\n- 9Router: start-9router\n- Use sempre 127.0.0.1 (não localhost)`,
+          content: `Falha ao chamar ${selectedModel.provider}: ${msg}\n\nDicas:\n- Ollama: npm run ollama:serve\n- 9Router: start-9router\n- OpenCode Go: defina OPENCODE_API_KEY no .env e reinicie\n- Use sempre 127.0.0.1 (não localhost)`,
         };
         setChannels((prev) =>
           prev.map((c) =>
