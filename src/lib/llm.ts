@@ -16,13 +16,19 @@ export interface LlmChatOptions {
 
 export interface LlmChatResult {
   content: string;
-  provider: 'ollama' | '9router';
+  provider: 'ollama' | '9router' | 'opencode';
   modelId: string;
 }
 
 export interface OllamaStatus {
   ok: boolean;
   version?: string;
+  models: string[];
+  error?: string;
+}
+
+export interface OpenCodeStatus {
+  ok: boolean;
   models: string[];
   error?: string;
 }
@@ -36,6 +42,15 @@ export interface RouterStatus {
 /** Nome limpo do modelo Ollama (remove prefixo ollama/). */
 export function resolveOllamaModelName(modelId: string): string {
   return modelId.startsWith('ollama/') ? modelId.slice('ollama/'.length) : modelId;
+}
+
+/** Nome do modelo sem o prefixo opencode/. */
+export function resolveOpenCodeModelName(modelId: string): string {
+  return modelId.startsWith('opencode/') ? modelId.slice('opencode/'.length) : modelId;
+}
+
+export function isOpenCodeModel(model: LLMModel): boolean {
+  return model.provider === 'opencode' || model.id.startsWith('opencode/');
 }
 
 export function isOllamaModel(model: LLMModel): boolean {
@@ -78,6 +93,33 @@ export async function chatWithLlm(opts: LlmChatOptions): Promise<LlmChatResult> 
     }
 
     return { content, provider: 'ollama', modelId: ollamaModel };
+  }
+
+  if (isOpenCodeModel(model)) {
+    const ocModel = resolveOpenCodeModelName(model.id);
+    const res = await fetch('/api/opencode/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: ocModel,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`OpenCode Go HTTP ${res.status}: ${body.slice(0, 300) || res.statusText}`);
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('OpenCode Go respondeu sem choices[0].message.content');
+    }
+    return { content, provider: 'opencode', modelId: ocModel };
   }
 
   // 9Router (OpenAI-compatible)
@@ -156,5 +198,21 @@ export async function checkRouterStatus(): Promise<RouterStatus> {
       models: [],
       error: err instanceof Error ? err.message : String(err),
     };
+  }
+}
+
+export async function checkOpenCodeStatus(): Promise<OpenCodeStatus> {
+  try {
+    const res = await fetch('/api/opencode/v1/models');
+    if (!res.ok) {
+      return { ok: false, models: [], error: res.status === 401 ? 'Sem OPENCODE_API_KEY válida' : `HTTP ${res.status}` };
+    }
+    const data = await res.json();
+    const models = Array.isArray(data?.data)
+      ? data.data.map((m: { id?: string }) => m.id).filter(Boolean)
+      : [];
+    return { ok: true, models };
+  } catch (err) {
+    return { ok: false, models: [], error: err instanceof Error ? err.message : String(err) };
   }
 }

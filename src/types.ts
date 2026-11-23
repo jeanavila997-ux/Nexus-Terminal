@@ -52,7 +52,7 @@ export interface Channel {
 export interface LLMModel {
   id: string;
   name: string;
-  provider: '9router' | 'openai' | 'anthropic' | 'deepseek' | 'meta' | 'ollama';
+  provider: '9router' | 'openai' | 'anthropic' | 'deepseek' | 'meta' | 'ollama' | 'opencode';
   description: string;
   badge?: string;
   contextWindow: string;

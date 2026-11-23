@@ -9,9 +9,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "ollama:status": "pwsh -NoProfile -File scripts/ensure-ollama.ps1",
-    "ollama:serve": "pwsh -NoProfile -File scripts/ensure-ollama.ps1",
-    "predev": "pwsh -NoProfile -File scripts/ensure-ollama.ps1"
+    "ollama:status": "node scripts/ensure-ollama.mjs --strict",
+    "ollama:serve": "node scripts/ensure-ollama.mjs --strict",
+    "predev": "node scripts/ensure-ollama.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",

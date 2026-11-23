@@ -51,6 +51,15 @@ export const INITIAL_LLMS: LLMModel[] = [
     contextWindow: '32k',
     speed: 'Local/GPU',
   },
+  {
+    id: 'opencode/glm-5',
+    name: 'GLM-5 (OpenCode Go)',
+    provider: 'opencode',
+    description: 'Assinatura OpenCode Go (opencode.ai/zen/go). Exige OPENCODE_API_KEY; confira o id em /models.',
+    badge: 'OpenCode Go',
+    contextWindow: '128k+',
+    speed: 'Nuvem',
+  },
 ];
 
 export const INITIAL_AGENTS: Agent[] = [
